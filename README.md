@@ -6,4 +6,4 @@ command line program to stitch assets into one big image, along with a lookup fi
 **-o:** output image, defaults to res.png<br>
 **-r:** reference file, defaults to assets.ref<br>
 # example
-![example](/example/res.png){ width=500px,height:500px }
+![example](/example/res.png)
