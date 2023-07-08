@@ -1,4 +1,4 @@
-use std::env::args;
+use std::env;
 use std::io::{Error, Write};
 use std::path::PathBuf;
 use std::fs;
@@ -8,11 +8,6 @@ use image::{DynamicImage, ImageError, GenericImageView};
 use image::io::Reader;
 use image::{ImageBuffer, ColorType};
 
-struct Args {
-    i: String,
-    o: String,
-    r: String
-}
 struct WH {
     w: u32,
     h: u32
@@ -35,9 +30,9 @@ impl Copy for SPt {}
 fn loadimg(path: PathBuf) -> Result<DynamicImage, ImageError> {
     Ok(Reader::open(path).map_err(ImageError::IoError)?.decode()?)
 }
-fn loadimgdir(path: String) -> Result<Vec<DynamicImage>, Error> {
+fn loadimgdir(path: String) -> Result<Vec<DynamicImage>, ImageError> {
     let mut res: Vec<DynamicImage> = vec![];
-    for entry in fs::read_dir(path)? {match loadimg(entry?.path()) {
+    for entry in fs::read_dir(path)? { match loadimg(entry?.path()) {
         Ok(img) => res.push(img),
         Err(..) => {}
     }};
@@ -56,19 +51,6 @@ fn getfilenames(path: String) -> Result<Vec<String>, Error> {
         None => {}
     }}
     Ok(res)
-}
-fn pargs() -> Result<Args, Error> {
-    let mut i = String::from("assets");
-    let mut o = String::from("res.png");
-    let mut r = String::from("assets.ref");
-    let argvec: Vec<String> = args().collect();
-    for p in 1..argvec.len() {match argvec[p].as_str() {
-        "-i" => i = argvec[p + 1].clone(),
-        "-o" => o = argvec[p + 1].clone(),
-        "-r" => r = argvec[p + 1].clone(),
-        &_ => {}
-    }};
-    Ok(Args {i: i, o:o, r:r})
 }
 fn scorept(pt: SPt, img: &DynamicImage, dim: &WH) -> u32 {
     if img.width() > pt.w || img.height() > pt.h { return MAX }
@@ -146,9 +128,12 @@ fn calcpts(imgs: &Vec<DynamicImage>, res: &mut Vec<Pt>) -> WH {
     dim
 }
 fn main() -> Result<(), ImageError> {
-    let args = pargs()?;
-    let imgs = loadimgdir(args.i.clone())?;
-    let imgnames = getfilenames(args.i)?;
+    let input: String = match env::args().nth(1) {
+        Some(x) => x,
+        None => "assets".to_string()
+    };
+    let imgs: Vec<DynamicImage> = loadimgdir(input.clone())?;
+    let imgnames = getfilenames(input.clone())?;
     let mut pts: Vec<Pt> = vec![];
     let mut ind: String = "".to_string();
     let dim = calcpts(&imgs, &mut pts);
@@ -159,8 +144,8 @@ fn main() -> Result<(), ImageError> {
             res.put_pixel(pts[i].x + x, pts[i].y + y, imgs[i].get_pixel(x, y))
         }}
     }
-    image::save_buffer(args.o, &res, dim.w, dim.h, ColorType::Rgba8)?;
-    let mut index = File::create(args.r)?;
+    image::save_buffer_with_format(format!("{}.png",input), &res, dim.w, dim.h, ColorType::Rgba8, image::ImageFormat::Png)?;
+    let mut index = File::create(format!("{}.ref", input))?;
     index.write(ind.as_bytes()).unwrap();
     Ok(())
 }
